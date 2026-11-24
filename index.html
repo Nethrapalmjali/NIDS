@@ -18,7 +18,8 @@
     <li><a href="#controls">Security Controls</a></li>
     <li><a href="#threats">Threats</a></li>
     <li><a href="#demo">Live Demo</a></li>
-    <li><a href="#evaluation">Evaluation</a></li>
+    <li><a href="#evaluation">Results</a></li>
+    <li><a href="#run">Run</a></li>
     <li><a href="#risk">Risk &amp; Compliance</a></li>
     <li><a href="#incident">Incident Response</a></li>
     <li><a href="#innovation">Innovation</a></li>
@@ -37,7 +38,7 @@
     <div class="tags">
       <span class="tag">Python</span><span class="tag">Scikit-learn</span><span class="tag">LightGBM</span>
       <span class="tag">XGBoost</span><span class="tag">CatBoost</span><span class="tag">Flask</span>
-      <span class="tag">SQLite</span><span class="tag">Chart.js</span><span class="tag">psutil</span>
+      <span class="tag">SQLite</span><span class="tag">Chart.js</span><span class="tag">Scapy</span><span class="tag">psutil</span><span class="tag">SHAP</span>
     </div>
     <div class="cta">
       <a class="btn" href="#demo">Try the live demo</a>
@@ -98,13 +99,13 @@
           <text x="105" y="223" text-anchor="middle" font-size="11" fill="#8a9bb0">Layer 1 · perimeter</text>
 
           <rect x="30" y="280" width="150" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
-          <text x="105" y="305" text-anchor="middle">Traffic Simulator</text>
-          <text x="105" y="323" text-anchor="middle" font-size="11" fill="#8a9bb0">DDoS / brute-force tests</text>
+          <text x="105" y="305" text-anchor="middle">Replay / Simulator</text>
+          <text x="105" y="323" text-anchor="middle" font-size="11" fill="#8a9bb0">held-out flows · 12 attacks</text>
 
           <!-- sensor -->
           <rect x="240" y="80" width="180" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
           <text x="330" y="105" text-anchor="middle">Capture Module</text>
-          <text x="330" y="123" text-anchor="middle" font-size="11" fill="#8a9bb0">Socket API · psutil</text>
+          <text x="330" y="123" text-anchor="middle" font-size="11" fill="#8a9bb0">Scapy raw sockets · psutil</text>
 
           <rect x="450" y="80" width="180" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
           <text x="540" y="105" text-anchor="middle">Feature Extraction</text>
@@ -202,7 +203,7 @@
       payloads, which keeps it fast and privacy-preserving.</p>
     <div class="pipeline">
       <div class="step"><h3>IP Traffic</h3><p>Inbound &amp; outbound activity on the monitored interface.</p></div>
-      <div class="step"><h3>Capture</h3><p>Python sockets, psutil connection table, traffic simulator.</p></div>
+      <div class="step"><h3>Capture</h3><p>Scapy packet capture (raw sockets via Npcap), psutil interface counters, or held-out replay with attack simulation.</p></div>
       <div class="step"><h3>Feature Extraction</h3><p>IPs, ports, protocol, bytes, packets, duration.</p></div>
       <div class="step"><h3>Traffic Analysis</h3><p>Flow direction ratio, rates, behavioural windows.</p></div>
       <div class="step"><h3>ML Classification</h3><p>Soft-voting ensemble of LightGBM, XGBoost and CatBoost.</p></div>
@@ -247,18 +248,18 @@
     <div class="eyebrow">04 · Security mechanisms &amp; tools</div>
     <h2>Controls applied, and why</h2>
     <div class="grid g3 mt">
-      <div class="card"><h3>Authentication</h3><p>Flask-Login session management; passwords hashed with PBKDF2-SHA256 (Werkzeug); login rate-limited to stop brute force against the NIDS itself.</p></div>
+      <div class="card"><h3>Authentication</h3><p>Flask-Login session management; passwords hashed with salted scrypt (Werkzeug); 5 failed logins per IP trigger a 5-minute lockout, so the NIDS itself can't be brute-forced.</p></div>
       <div class="card"><h3>Access control</h3><p>Role-based access (Viewer / Analyst / Admin) enforced by route decorators, with deny-by-default for any route not explicitly allowed.</p></div>
-      <div class="card"><h3>Encryption</h3><p>Dashboard served over HTTPS (TLS 1.2+); session cookies set <code>Secure</code>, <code>HttpOnly</code>, <code>SameSite=Lax</code>.</p></div>
-      <div class="card"><h3>Input validation</h3><p>All form and API inputs validated by type and range; IP and port fields parsed with <code>ipaddress</code>; templates auto-escaped against XSS.</p></div>
-      <div class="card"><h3>Injection safety</h3><p>Every SQLite query is parameterised; no string-built SQL anywhere in the incident store.</p></div>
+      <div class="card"><h3>Encryption</h3><p>Dashboard binds to localhost by default; for remote access it sits behind a TLS reverse proxy, with <code>NIDS_HTTPS=1</code> marking cookies <code>Secure</code>. Cookies are always <code>HttpOnly</code> and <code>SameSite=Lax</code>; a strict Content-Security-Policy and anti-framing headers are set on every response.</p></div>
+      <div class="card"><h3>Input validation</h3><p>All form and API inputs validated by type, length and allow-list; CSRF token required on every POST; Jinja templates and the dashboard's JavaScript escape all output against XSS.</p></div>
+      <div class="card"><h3>Injection safety</h3><p>Every SQLite query is parameterised. Database triggers make the audit trail append-only and block deletion of incidents.</p></div>
       <div class="card"><h3>Integrity</h3><p>Model artefacts verified by SHA-256 before loading, because loading an untrusted Joblib file is code execution.</p></div>
     </div>
 
     <div class="table-wrap mt">
       <table>
         <tr><th>Layer</th><th>Technology</th><th>Role in the system</th></tr>
-        <tr><td>Capture</td><td>Python Socket API, psutil</td><td>Read connection tables and packet headers</td></tr>
+        <tr><td>Capture</td><td>Scapy, psutil</td><td>Capture packet headers and assemble bidirectional flows; measure live interface throughput</td></tr>
         <tr><td>Processing</td><td>Pandas, NumPy</td><td>Windowed aggregation into flow features</td></tr>
         <tr><td>ML</td><td>Scikit-learn, LightGBM, XGBoost, CatBoost</td><td>Preprocessing pipeline and ensemble classifier</td></tr>
         <tr><td>Persistence</td><td>Joblib, SQLite</td><td>Model storage, incident and audit logs</td></tr>
@@ -331,7 +332,34 @@
         <div class="log" id="log"><p class="note">No incidents yet. Launch an attack.</p></div>
       </div>
     </div>
-    <p class="note">This is a simulation for demonstration. The real system reads live connections through the capture module.</p>
+    <p class="note">This page widget is a simplified in-browser illustration. The real system (below) scores flows with the trained ensemble.</p>
+  </div>
+</section>
+
+<!-- ================= RUN ================= -->
+<section id="run">
+  <div class="wrap">
+    <div class="eyebrow">Run the real system</div>
+    <h2>Real-time dashboard</h2>
+    <p class="lead">The repository contains the full working system: the training pipeline, the detection engine and the
+      Flask dashboard. The engine classifies flows every second, writes incidents to SQLite with an explanation built
+      from per-feature SHAP contributions, and charts the host's live network throughput.</p>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Quick start</h3>
+<pre class="code">pip install -r requirements.txt
+python -m nids.train            # train + evaluate (~10 min)
+python -m nids.app init         # create admin account
+python -m nids.app run          # http://127.0.0.1:5000</pre>
+      </div>
+      <div class="card">
+        <h3>Traffic sources</h3>
+        <ul>
+          <li><b><code>--source replay</code></b>: streams held-out CIC-IDS2017 flows the models never saw, as a continuous live feed. Analysts can inject any of the 12 attack classes, and the dashboard shows live agreement with ground truth.</li>
+          <li><b><code>--source live</code></b>: real packet capture with Scapy. Packets are assembled into bidirectional flows (closed on FIN/RST, 15 s idle or 60 s active timeout) and scored as they close. On Windows this needs Npcap; on Linux, root or <code>CAP_NET_RAW</code>.</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -341,19 +369,72 @@
     <div class="eyebrow">07 · Evaluation</div>
     <h2>Measuring the controls and comparing alternatives</h2>
 
-    <h3 class="mt">Model performance</h3>
-    <p class="lead">Each model is evaluated on a held-out, stratified test split with accuracy, macro precision, recall,
-      F1 and false-positive rate. Macro averaging is used so rare attack classes count as much as floods.</p>
+    <h3 class="mt">Dataset &amp; method</h3>
+    <p class="lead" id="dataset-summary">Models are trained on <b>CIC-IDS2017</b>, the Canadian Institute for
+      Cybersecurity's labelled benchmark of five days of real enterprise traffic with injected attacks.</p>
+    <div class="grid g4">
+      <div class="card"><h3 id="d-raw">–</h3><p>labelled flows loaded</p></div>
+      <div class="card"><h3 id="d-train">–</h3><p>training flows (80%)</p></div>
+      <div class="card"><h3 id="d-test">–</h3><p>held-out test flows (20%, stratified)</p></div>
+      <div class="card"><h3 id="d-feat">–</h3><p>flow features, all computable live from packet headers</p></div>
+    </div>
+    <p class="note">Pipeline: drop duplicate flows (to prevent train/test leakage), remove NaN/∞ values, cap benign at
+      250k and each attack at 50k flows, apply square-root class weighting so rare classes (SQL injection, XSS)
+      still count, then a stratified 80/20 split. Infiltration (36 flows) and Heartbleed (11) are too small to learn
+      and are excluded.</p>
+
+    <h3 class="mt">Model performance <span class="note" id="gen-date"></span></h3>
+    <p class="lead">Every number below is measured on the held-out test split. Macro averaging weights all 13 classes
+      equally, so it shows how well rare web attacks are handled; plain accuracy is dominated by benign traffic.
+      FPR is the share of benign flows wrongly flagged as attacks, and detection rate is the share of attack flows
+      flagged as any attack.</p>
     <div class="table-wrap">
       <table id="metrics">
-        <tr><th>Model</th><th class="num">Accuracy</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th><th class="num">FPR</th><th class="num">Inference / flow</th></tr>
+        <tr><th>Model</th><th class="num">Accuracy</th><th class="num">Macro precision</th><th class="num">Macro recall</th><th class="num">Macro F1</th><th class="num">FPR</th><th class="num">Detection rate</th><th class="num">Inference / flow</th><th class="num">Train time</th></tr>
       </table>
     </div>
 
+    <h3 class="mt">Per-class results (ensemble)</h3>
+    <div class="table-wrap">
+      <table id="perclass">
+        <tr><th>Class</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th><th class="num">Test flows</th></tr>
+      </table>
+    </div>
+    <p class="note" id="perclass-note"></p>
+
+    <div class="card mt">
+      <h3>Confusion matrix (ensemble, test flows)</h3>
+      <div class="table-wrap cm-wrap"><table id="cm" class="cm"></table></div>
+      <p class="note">Rows are the true class and columns the predicted class; each cell is a count of test flows. Green marks
+        correct predictions and red marks errors, with colour intensity showing the share of that row.</p>
+    </div>
+    <div class="grid g2 mt">
+      <div class="card">
+        <h3>Top features (LightGBM gain)</h3>
+        <div id="importance"></div>
+      </div>
+      <div class="card">
+        <h3>What the results show</h3>
+        <ul>
+          <li><b>Volumetric and scanning attacks are solved problems at flow level.</b> DDoS, Hulk, GoldenEye, port scan and SSH/FTP brute force all reach an F1 of about 99.5% or higher.</li>
+          <li><b>Timing features matter.</b> The longest packet gap (Flow IAT Max) and flow duration rank near the top, because slow-rate DoS and botnet beaconing are defined by <i>when</i> packets arrive, not by how many.</li>
+          <li><b>TCP initial window sizes are strong fingerprints</b> of the attack tools used in the dataset. That boosts test accuracy but may transfer less well to other networks, which is a key reason to retrain on local traffic.</li>
+          <li><b>The web attacks are the real weakness.</b> XSS and web brute force target the same server and port with similar request sizes. Most of their errors are confusion with each other, not missed attacks.</li>
+        </ul>
+      </div>
+    </div>
+
     <div class="grid g3 mt">
-      <div class="card"><h3>LightGBM</h3><p>Fastest training and inference with a low memory footprint. Best fit for real-time scoring on a 4 GB laptop.</p></div>
-      <div class="card"><h3>XGBoost</h3><p>Strong accuracy and regularisation that resists overfitting. Slightly heavier at inference time.</p></div>
-      <div class="card"><h3>CatBoost</h3><p>Handles categorical fields (protocol, port class) natively, so needs less preprocessing. Slowest to train.</p></div>
+      <div class="card"><h3>LightGBM</h3><p>Fastest to train (68 s), and its SHAP contributions power the alert explanations. However, its 63-leaf trees make it the slowest at inference (~79 µs/flow) and the weakest on rare web attacks.</p></div>
+      <div class="card"><h3>XGBoost</h3><p>Best single model: highest accuracy, highest macro precision, lowest false-positive rate among single models, with ~15 µs/flow inference and 88 s training.</p></div>
+      <div class="card"><h3>CatBoost</h3><p>Symmetric (oblivious) trees give the fastest inference (~1.3 µs/flow) and the highest single-model recall and detection rate, but it takes the longest to train (449 s) and has twice the false-positive rate.</p></div>
+    </div>
+    <div class="card mt">
+      <h3>Why an ensemble?</h3>
+      <p>Soft voting averages the three models' probabilities. It achieves the best macro F1 and recall of all four
+        options while keeping XGBoost's low false-positive rate. The cost is the combined inference time of all
+        three models (~95 µs/flow), which still allows over 10,000 flows per second on a single CPU core, far more
+        than a small office network produces.</p>
     </div>
 
     <h3 class="mt">NIDS vs. alternative solutions</h3>
@@ -438,7 +519,7 @@
         <li>Detection-only (IDS, not IPS): containment needs a human action.</li>
         <li>Encrypted payloads are not inspected, so some web attacks are inferred only from flow shape.</li>
         <li>A single sensor is itself a point of failure and can be overwhelmed by a large flood.</li>
-        <li>Model quality depends on how representative the training data is.</li></ul></div>
+        <li>Model quality depends on how representative the training data is. The live flow builder approximates CICFlowMeter, so scores on real traffic from a different network will be lower than the test-set numbers until the model is retrained on local data.</li></ul></div>
     </div>
   </div>
 </section>
@@ -469,6 +550,7 @@
 </footer>
 
 <script src="assets/results.js"></script>
+<script src="assets/report.js"></script>
 <script src="assets/app.js"></script>
 </body>
 </html>

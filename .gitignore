@@ -1,0 +1,7 @@
+﻿.venv/
+data/
+__pycache__/
+*.pyc
+nids/instance/
+
+catboost_info/

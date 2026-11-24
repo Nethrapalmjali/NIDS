@@ -139,5 +139,18 @@ canvas { width: 100%; height: 240px; display: block; background: var(--bg); bord
 .phase p { color: var(--muted); font-size: .88rem; margin: 0; }
 
 .pending { color: var(--muted); font-style: italic; }
+td.best { color: var(--accent); font-weight: 700; }
+td.weak { color: var(--warn); }
+.cm-wrap { border: 0; }
+table.cm { font-family: var(--mono); font-size: .7rem; }
+table.cm th, table.cm td { padding: .3rem .25rem; text-align: center; border: 1px solid var(--line); }
+table.cm th { text-transform: none; letter-spacing: 0; font-size: .66rem; white-space: nowrap; }
+.bar { display: grid; grid-template-columns: 190px 1fr 52px; gap: .6rem; align-items: center; margin: .45rem 0; font-size: .85rem; }
+.bar span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar div { background: var(--bg); border-radius: 4px; height: 10px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent-2); }
+.bar b { font-family: var(--mono); font-size: .8rem; text-align: right; }
+pre.code { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .9rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; color: var(--text); margin: .6rem 0 0; }
 
 footer { padding: 2.5rem 0; color: var(--muted); font-size: .85rem; text-align: center; }
