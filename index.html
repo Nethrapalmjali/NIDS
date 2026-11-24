@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NIDS – ML-Based Network Intrusion Detection System</title>
+  <meta name="description" content="A lightweight, machine-learning powered Network Intrusion Detection System that captures traffic, detects one-directional anomalies and classifies 12 attack types.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <span class="brand">&gt;_ NIDS</span>
+  <ul>
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#workflow">Workflow</a></li>
+    <li><a href="#controls">Security Controls</a></li>
+    <li><a href="#threats">Threats</a></li>
+    <li><a href="#demo">Live Demo</a></li>
+    <li><a href="#evaluation">Evaluation</a></li>
+    <li><a href="#risk">Risk &amp; Compliance</a></li>
+    <li><a href="#incident">Incident Response</a></li>
+    <li><a href="#innovation">Innovation</a></li>
+  </ul>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Network Intrusion Detection System</div>
+    <h1>Detecting attacks hidden in <span>one-way traffic</span> with machine learning.</h1>
+    <p class="lead">NIDS captures live network connections, extracts flow-level features, and uses an ensemble of
+      gradient-boosted models to classify traffic across 12 attack categories, including DDoS, port scanning,
+      brute force, botnet and web attacks. When it raises an alert, it also explains in plain language why the
+      traffic was flagged.</p>
+    <div class="tags">
+      <span class="tag">Python</span><span class="tag">Scikit-learn</span><span class="tag">LightGBM</span>
+      <span class="tag">XGBoost</span><span class="tag">CatBoost</span><span class="tag">Flask</span>
+      <span class="tag">SQLite</span><span class="tag">Chart.js</span><span class="tag">psutil</span>
+    </div>
+    <div class="cta">
+      <a class="btn" href="#demo">Try the live demo</a>
+      <a class="btn ghost" href="#architecture">View architecture</a>
+    </div>
+  </div>
+</header>
+
+<!-- ================= PROBLEM ================= -->
+<section id="problem">
+  <div class="wrap">
+    <div class="eyebrow">01 · Problem statement</div>
+    <h2>Why traditional monitoring falls short</h2>
+    <p class="lead">Modern networks generate far more traffic than people can review by hand. Attacks blend into
+      normal traffic, and signature-based tools miss anything they don't already have a rule for.</p>
+    <div class="grid g3 mt">
+      <div class="card"><h3>One-way anomalies</h3><p>Continuous one-directional flows can mean data exfiltration, scanning or command-and-control beaconing, and they are hard to spot in aggregate traffic.</p></div>
+      <div class="card"><h3>Noise from legitimate traffic</h3><p>High volumes of normal traffic bury the few malicious flows that matter.</p></div>
+      <div class="card"><h3>Look-alike attacks</h3><p>Low-and-slow attacks (Slowloris, credential stuffing) imitate legitimate request patterns.</p></div>
+      <div class="card"><h3>Static rules go stale</h3><p>Rule-only systems cannot recognise variants of attacks they have no signature for.</p></div>
+      <div class="card"><h3>Alerts without context</h3><p>Analysts receive raw alerts with no explanation, which slows triage and response.</p></div>
+      <div class="card" style="border-color:var(--accent)"><h3 style="color:var(--accent)">Our solution</h3><p>A lightweight, ML-driven monitor that analyses flow direction and behaviour, classifies threats, and raises early, explained alerts on a live dashboard.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ARCHITECTURE ================= -->
+<section id="architecture">
+  <div class="wrap">
+    <div class="eyebrow">02 · Secure architecture</div>
+    <h2>Defense-in-depth by design</h2>
+    <p class="lead">The system is split into isolated layers. Each layer has a single job, runs with the minimum
+      privileges it needs, and is guarded by its own control, so a weakness in one layer does not compromise the rest.</p>
+
+    <div class="diagram" role="img" aria-label="Layered architecture of the NIDS from the network edge to the analyst">
+      <svg viewBox="0 0 1060 430" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#4aa8ff"/>
+          </marker>
+        </defs>
+        <!-- zones -->
+        <rect x="10" y="40" width="190" height="330" rx="10" fill="none" stroke="#ff5d6c" stroke-dasharray="5 4"/>
+        <text x="105" y="30" text-anchor="middle" font-size="13" fill="#ff5d6c">UNTRUSTED NETWORK</text>
+        <rect x="220" y="40" width="430" height="330" rx="10" fill="none" stroke="#ffb547" stroke-dasharray="5 4"/>
+        <text x="435" y="30" text-anchor="middle" font-size="13" fill="#ffb547">SENSOR &amp; ANALYSIS ZONE (read-only)</text>
+        <rect x="670" y="40" width="380" height="330" rx="10" fill="none" stroke="#3ddc97" stroke-dasharray="5 4"/>
+        <text x="860" y="30" text-anchor="middle" font-size="13" fill="#3ddc97">APPLICATION ZONE (authenticated)</text>
+
+        <!-- untrusted -->
+        <g font-size="13">
+          <rect x="30" y="80" width="150" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="105" y="105" text-anchor="middle">Internet / LAN</text>
+          <text x="105" y="123" text-anchor="middle" font-size="11" fill="#8a9bb0">inbound + outbound IP</text>
+
+          <rect x="30" y="180" width="150" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="105" y="205" text-anchor="middle">Host Firewall</text>
+          <text x="105" y="223" text-anchor="middle" font-size="11" fill="#8a9bb0">Layer 1 · perimeter</text>
+
+          <rect x="30" y="280" width="150" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="105" y="305" text-anchor="middle">Traffic Simulator</text>
+          <text x="105" y="323" text-anchor="middle" font-size="11" fill="#8a9bb0">DDoS / brute-force tests</text>
+
+          <!-- sensor -->
+          <rect x="240" y="80" width="180" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="330" y="105" text-anchor="middle">Capture Module</text>
+          <text x="330" y="123" text-anchor="middle" font-size="11" fill="#8a9bb0">Socket API · psutil</text>
+
+          <rect x="450" y="80" width="180" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="540" y="105" text-anchor="middle">Feature Extraction</text>
+          <text x="540" y="123" text-anchor="middle" font-size="11" fill="#8a9bb0">Pandas · NumPy</text>
+
+          <rect x="450" y="180" width="180" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="540" y="205" text-anchor="middle">Flow Analyzer</text>
+          <text x="540" y="223" text-anchor="middle" font-size="11" fill="#8a9bb0">direction · rate · behaviour</text>
+
+          <rect x="240" y="180" width="180" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="330" y="205" text-anchor="middle">ML Ensemble</text>
+          <text x="330" y="223" text-anchor="middle" font-size="11" fill="#8a9bb0">LightGBM · XGBoost · CatBoost</text>
+
+          <rect x="240" y="280" width="390" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="435" y="305" text-anchor="middle">Model Store (Joblib) · signed hashes, read-only mount</text>
+          <text x="435" y="323" text-anchor="middle" font-size="11" fill="#8a9bb0">Layer 2 · integrity of detection logic</text>
+
+          <!-- app -->
+          <rect x="690" y="80" width="160" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="770" y="105" text-anchor="middle">Alert Engine</text>
+          <text x="770" y="123" text-anchor="middle" font-size="11" fill="#8a9bb0">severity scoring</text>
+
+          <rect x="870" y="80" width="160" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="950" y="105" text-anchor="middle">AI Explainer</text>
+          <text x="950" y="123" text-anchor="middle" font-size="11" fill="#8a9bb0">incident narrative</text>
+
+          <rect x="690" y="180" width="160" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="770" y="205" text-anchor="middle">SQLite Incident Log</text>
+          <text x="770" y="223" text-anchor="middle" font-size="11" fill="#8a9bb0">parameterised queries</text>
+
+          <rect x="870" y="180" width="160" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="950" y="205" text-anchor="middle">Flask + Flask-Login</text>
+          <text x="950" y="223" text-anchor="middle" font-size="11" fill="#8a9bb0">Layer 3 · auth · RBAC · CSRF</text>
+
+          <rect x="870" y="280" width="160" height="56" rx="8" fill="#1b2533" stroke="#3ddc97"/>
+          <text x="950" y="305" text-anchor="middle">Analyst Dashboard</text>
+          <text x="950" y="323" text-anchor="middle" font-size="11" fill="#8a9bb0">HTTPS · Chart.js</text>
+
+          <rect x="690" y="280" width="160" height="56" rx="8" fill="#1b2533" stroke="#233042"/>
+          <text x="770" y="305" text-anchor="middle">Audit Trail</text>
+          <text x="770" y="323" text-anchor="middle" font-size="11" fill="#8a9bb0">Layer 4 · accountability</text>
+        </g>
+
+        <!-- arrows -->
+        <g stroke="#4aa8ff" stroke-width="1.6" fill="none" marker-end="url(#arr)">
+          <path d="M105 136 V178"/>
+          <path d="M180 208 H210 V108 H238"/>
+          <path d="M180 308 H210 V120 H238"/>
+          <path d="M420 108 H448"/>
+          <path d="M540 136 V178"/>
+          <path d="M450 208 H422"/>
+          <path d="M330 278 V238"/>
+          <path d="M420 194 H660 V108 H688"/>
+          <path d="M850 108 H868"/>
+          <path d="M770 136 V178"/>
+          <path d="M950 136 V178"/>
+          <path d="M950 236 V278"/>
+          <path d="M868 308 H852"/>
+        </g>
+        <text x="530" y="400" text-anchor="middle" font-size="12" fill="#8a9bb0">Data flows left → right only. The sensor zone cannot write to the network; the application zone cannot modify models.</text>
+      </svg>
+    </div>
+
+    <div class="grid g2 mt">
+      <div class="card">
+        <h3>Defense-in-depth layers</h3>
+        <ul>
+          <li><b>Perimeter:</b> host firewall limits the dashboard to HTTPS from the admin subnet.</li>
+          <li><b>Detection integrity:</b> model files are hashed (SHA-256) and loaded read-only, so tampered models are rejected.</li>
+          <li><b>Application:</b> Flask-Login sessions, hashed passwords, CSRF tokens, role checks on every route.</li>
+          <li><b>Data:</b> SQLite accessed only via parameterised queries; the incident log is append-only.</li>
+          <li><b>Accountability:</b> every login, acknowledgement and configuration change is written to the audit trail.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Least privilege</h3>
+        <ul>
+          <li>Capture runs as a dedicated service account with only the raw-socket capability, not full admin rights.</li>
+          <li>The ML engine has no network access; it receives feature vectors and returns labels.</li>
+          <li><b>Viewer</b> role: read dashboards. <b>Analyst</b>: acknowledge and annotate incidents. <b>Admin</b>: manage users and thresholds.</li>
+          <li>Secrets (Flask secret key, API keys) live in environment variables, never in source code.</li>
+          <li>Captured payloads are not stored. Only flow metadata is kept, which also reduces privacy risk.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= WORKFLOW ================= -->
+<section id="workflow">
+  <div class="wrap">
+    <div class="eyebrow">03 · Workflow</div>
+    <h2>From packet to explained alert</h2>
+    <p class="lead">Each connection passes through seven stages. Detection works on flow metadata, never on packet
+      payloads, which keeps it fast and privacy-preserving.</p>
+    <div class="pipeline">
+      <div class="step"><h3>IP Traffic</h3><p>Inbound &amp; outbound activity on the monitored interface.</p></div>
+      <div class="step"><h3>Capture</h3><p>Python sockets, psutil connection table, traffic simulator.</p></div>
+      <div class="step"><h3>Feature Extraction</h3><p>IPs, ports, protocol, bytes, packets, duration.</p></div>
+      <div class="step"><h3>Traffic Analysis</h3><p>Flow direction ratio, rates, behavioural windows.</p></div>
+      <div class="step"><h3>ML Classification</h3><p>Soft-voting ensemble of LightGBM, XGBoost and CatBoost.</p></div>
+      <div class="step"><h3>Dashboard &amp; AI</h3><p>Live charts, threat simulation, incident explanation.</p></div>
+      <div class="step"><h3>Alert &amp; Log</h3><p>Severity-ranked alerts stored for investigation.</p></div>
+    </div>
+
+    <div class="grid g2 mt">
+      <div class="card">
+        <h3>Key flow features</h3>
+        <div class="table-wrap" style="margin-top:.6rem">
+          <table>
+            <tr><th>Feature</th><th>Why it matters</th></tr>
+            <tr><td><code>fwd_bytes / bwd_bytes</code></td><td>Direction ratio. Near-zero return traffic flags exfiltration or scanning.</td></tr>
+            <tr><td><code>pkt_rate</code></td><td>Floods (DDoS / DoS) show sudden rate spikes.</td></tr>
+            <tr><td><code>unique_dst_ports</code></td><td>Many ports from one source means port scanning.</td></tr>
+            <tr><td><code>conn_per_src_22/21</code></td><td>Repeated short SSH/FTP sessions point to brute force.</td></tr>
+            <tr><td><code>flow_duration, IAT</code></td><td>Slow-rate and beaconing (botnet) behaviour.</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>System modules</h3>
+        <div class="table-wrap" style="margin-top:.6rem">
+          <table>
+            <tr><th>#</th><th>Module</th></tr>
+            <tr><td>M1</td><td>Live network traffic capture</td></tr>
+            <tr><td>M2</td><td>Feature extraction &amp; preprocessing</td></tr>
+            <tr><td>M3</td><td>Ensemble ML threat detection</td></tr>
+            <tr><td>M4</td><td>Real-time monitoring dashboard</td></tr>
+            <tr><td>M5</td><td>AI incident explanation &amp; alert management</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONTROLS ================= -->
+<section id="controls">
+  <div class="wrap">
+    <div class="eyebrow">04 · Security mechanisms &amp; tools</div>
+    <h2>Controls applied, and why</h2>
+    <div class="grid g3 mt">
+      <div class="card"><h3>Authentication</h3><p>Flask-Login session management; passwords hashed with PBKDF2-SHA256 (Werkzeug); login rate-limited to stop brute force against the NIDS itself.</p></div>
+      <div class="card"><h3>Access control</h3><p>Role-based access (Viewer / Analyst / Admin) enforced by route decorators, with deny-by-default for any route not explicitly allowed.</p></div>
+      <div class="card"><h3>Encryption</h3><p>Dashboard served over HTTPS (TLS 1.2+); session cookies set <code>Secure</code>, <code>HttpOnly</code>, <code>SameSite=Lax</code>.</p></div>
+      <div class="card"><h3>Input validation</h3><p>All form and API inputs validated by type and range; IP and port fields parsed with <code>ipaddress</code>; templates auto-escaped against XSS.</p></div>
+      <div class="card"><h3>Injection safety</h3><p>Every SQLite query is parameterised; no string-built SQL anywhere in the incident store.</p></div>
+      <div class="card"><h3>Integrity</h3><p>Model artefacts verified by SHA-256 before loading, because loading an untrusted Joblib file is code execution.</p></div>
+    </div>
+
+    <div class="table-wrap mt">
+      <table>
+        <tr><th>Layer</th><th>Technology</th><th>Role in the system</th></tr>
+        <tr><td>Capture</td><td>Python Socket API, psutil</td><td>Read connection tables and packet headers</td></tr>
+        <tr><td>Processing</td><td>Pandas, NumPy</td><td>Windowed aggregation into flow features</td></tr>
+        <tr><td>ML</td><td>Scikit-learn, LightGBM, XGBoost, CatBoost</td><td>Preprocessing pipeline and ensemble classifier</td></tr>
+        <tr><td>Persistence</td><td>Joblib, SQLite</td><td>Model storage, incident and audit logs</td></tr>
+        <tr><td>Backend</td><td>Flask, Flask-Login</td><td>REST API, authentication, RBAC</td></tr>
+        <tr><td>Frontend</td><td>HTML5, CSS3, Chart.js</td><td>Live traffic charts and alert feed</td></tr>
+        <tr><td>Environment</td><td>Windows / Linux, VS Code, Jupyter</td><td>Development and model experimentation (min. 4 GB RAM)</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= THREATS ================= -->
+<section id="threats">
+  <div class="wrap">
+    <div class="eyebrow">05 · Threat &amp; vulnerability analysis</div>
+    <h2>12 attack classes, mapped to real-world techniques</h2>
+    <p class="lead">The classifier is trained on labelled flow records in the style of CIC-IDS2017. Each class is mapped
+      to its attack vector, the features that reveal it, and its MITRE ATT&amp;CK technique.</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>#</th><th>Class</th><th>Attack vector</th><th>Tell-tale signal</th><th>ATT&amp;CK</th><th>Severity</th></tr>
+        <tr><td>1</td><td>DDoS</td><td>Many sources flood one target</td><td>Rate spike, many src IPs, no return traffic</td><td>T1498</td><td><span class="pill hi">High</span></td></tr>
+        <tr><td>2</td><td>DoS Hulk</td><td>HTTP GET flood with unique URLs</td><td>High req/s, short flows</td><td>T1499.002</td><td><span class="pill hi">High</span></td></tr>
+        <tr><td>3</td><td>DoS GoldenEye</td><td>HTTP keep-alive exhaustion</td><td>Long-lived, many concurrent sessions</td><td>T1499.002</td><td><span class="pill hi">High</span></td></tr>
+        <tr><td>4</td><td>DoS Slowloris</td><td>Partial HTTP headers held open</td><td>Very long duration, tiny byte counts</td><td>T1499.002</td><td><span class="pill md">Medium</span></td></tr>
+        <tr><td>5</td><td>DoS Slowhttptest</td><td>Slow POST body / read</td><td>Low rate, long inter-arrival time</td><td>T1499.002</td><td><span class="pill md">Medium</span></td></tr>
+        <tr><td>6</td><td>Port Scan</td><td>Reconnaissance of open services</td><td>One src → many dst ports, one-way SYNs</td><td>T1046</td><td><span class="pill md">Medium</span></td></tr>
+        <tr><td>7</td><td>SSH Brute Force</td><td>Credential guessing on :22</td><td>Repeated short sessions to port 22</td><td>T1110.001</td><td><span class="pill hi">High</span></td></tr>
+        <tr><td>8</td><td>FTP Brute Force</td><td>Credential guessing on :21</td><td>Repeated short sessions to port 21</td><td>T1110.001</td><td><span class="pill hi">High</span></td></tr>
+        <tr><td>9</td><td>Web – Brute Force</td><td>Login form guessing</td><td>Bursts of POSTs to one endpoint</td><td>T1110</td><td><span class="pill md">Medium</span></td></tr>
+        <tr><td>10</td><td>Web – XSS</td><td>Script injection in parameters</td><td>Unusual request sizes and timing</td><td>T1189</td><td><span class="pill md">Medium</span></td></tr>
+        <tr><td>11</td><td>Web – SQL Injection</td><td>Malicious query strings</td><td>Anomalous request/response byte ratio</td><td>T1190</td><td><span class="pill hi">High</span></td></tr>
+        <tr><td>12</td><td>Botnet</td><td>C2 beaconing from compromised host</td><td>Periodic, small, outbound-only flows</td><td>T1071</td><td><span class="pill hi">High</span></td></tr>
+      </table>
+    </div>
+    <p class="note">Flows matching none of the classes are labelled <b>Benign</b>. One-directional flows with a high
+      outbound byte ratio are flagged separately as <b>possible exfiltration</b> (T1041) for analyst review.</p>
+  </div>
+</section>
+
+<!-- ================= DEMO ================= -->
+<section id="demo">
+  <div class="wrap">
+    <div class="eyebrow">06 · Interactive demo</div>
+    <h2>Watch the detector react</h2>
+    <p class="lead">This in-browser simulation generates synthetic flows and runs the same behavioural feature checks the
+      NIDS uses. Launch an attack and watch it get detected and explained.</p>
+
+    <div class="demo">
+      <div class="card">
+        <div class="controls">
+          <button class="btn" id="toggle">Pause</button>
+          <button class="btn attack" data-attack="ddos">Launch DDoS</button>
+          <button class="btn attack" data-attack="scan">Port Scan</button>
+          <button class="btn attack" data-attack="brute">SSH Brute Force</button>
+          <button class="btn attack" data-attack="exfil">Data Exfiltration</button>
+          <button class="btn attack" data-attack="botnet">Botnet Beacon</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="s-flows">0</b><span>flows analysed</span></div>
+          <div class="stat"><b id="s-rate">0</b><span>packets / sec</span></div>
+          <div class="stat"><b id="s-alerts" style="color:var(--bad)">0</b><span>alerts</span></div>
+          <div class="stat"><b id="s-status" style="color:var(--accent)">SAFE</b><span>network status</span></div>
+        </div>
+        <canvas id="chart" width="900" height="240"></canvas>
+        <p class="note"><span style="color:var(--accent)">■</span> benign packets/s &nbsp; <span style="color:var(--bad)">■</span> malicious packets/s</p>
+      </div>
+      <div class="card">
+        <h3>Incident log &amp; AI explanation</h3>
+        <div class="log" id="log"><p class="note">No incidents yet. Launch an attack.</p></div>
+      </div>
+    </div>
+    <p class="note">This is a simulation for demonstration. The real system reads live connections through the capture module.</p>
+  </div>
+</section>
+
+<!-- ================= EVALUATION ================= -->
+<section id="evaluation">
+  <div class="wrap">
+    <div class="eyebrow">07 · Evaluation</div>
+    <h2>Measuring the controls and comparing alternatives</h2>
+
+    <h3 class="mt">Model performance</h3>
+    <p class="lead">Each model is evaluated on a held-out, stratified test split with accuracy, macro precision, recall,
+      F1 and false-positive rate. Macro averaging is used so rare attack classes count as much as floods.</p>
+    <div class="table-wrap">
+      <table id="metrics">
+        <tr><th>Model</th><th class="num">Accuracy</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th><th class="num">FPR</th><th class="num">Inference / flow</th></tr>
+      </table>
+    </div>
+
+    <div class="grid g3 mt">
+      <div class="card"><h3>LightGBM</h3><p>Fastest training and inference with a low memory footprint. Best fit for real-time scoring on a 4 GB laptop.</p></div>
+      <div class="card"><h3>XGBoost</h3><p>Strong accuracy and regularisation that resists overfitting. Slightly heavier at inference time.</p></div>
+      <div class="card"><h3>CatBoost</h3><p>Handles categorical fields (protocol, port class) natively, so needs less preprocessing. Slowest to train.</p></div>
+    </div>
+
+    <h3 class="mt">NIDS vs. alternative solutions</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Solution</th><th>Detects new variants</th><th>Cost</th><th>Resource use</th><th>Explains alerts</th><th>Main risk</th></tr>
+        <tr><td><b>This NIDS (ML ensemble)</b></td><td>Yes, behavioural</td><td>Free / open-source</td><td>Low–medium</td><td>Yes (AI narrative)</td><td>Model drift; adversarial evasion</td></tr>
+        <tr><td>Snort</td><td>No, signature only</td><td>Free (paid rule feed)</td><td>Low</td><td>Rule message only</td><td>Misses zero-day patterns</td></tr>
+        <tr><td>Suricata</td><td>Limited</td><td>Free</td><td>Medium (multi-thread)</td><td>Rule message only</td><td>Rule maintenance overhead</td></tr>
+        <tr><td>Zeek</td><td>With custom scripts</td><td>Free</td><td>Medium–high</td><td>No, logs only</td><td>Steep learning curve</td></tr>
+        <tr><td>Commercial NDR</td><td>Yes</td><td>High licence cost</td><td>High</td><td>Yes</td><td>Vendor lock-in; cost for small orgs</td></tr>
+      </table>
+    </div>
+
+    <h3 class="mt">Performance impact of security measures</h3>
+    <div class="grid g3">
+      <div class="card"><h3>Metadata only</h3><p>Analysing headers and flow statistics instead of payloads cuts CPU and storage cost, and avoids decrypting TLS.</p></div>
+      <div class="card"><h3>Windowed batching</h3><p>Flows are scored in short time windows, trading a few seconds of latency for much lower CPU load.</p></div>
+      <div class="card"><h3>Auth &amp; TLS overhead</h3><p>Session checks and TLS add milliseconds per dashboard request and do not touch the capture path.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= RISK ================= -->
+<section id="risk">
+  <div class="wrap">
+    <div class="eyebrow">08 · Risk &amp; compliance</div>
+    <h2>Risk register</h2>
+    <p class="lead">Risks are scored as likelihood × impact (1–5 each). Each risk has a treatment and the residual risk
+      after that treatment.</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Risk</th><th class="num">L</th><th class="num">I</th><th class="num">Score</th><th>Treatment</th><th>Residual</th></tr>
+        <tr><td>Undetected novel attack (false negative)</td><td class="num">3</td><td class="num">5</td><td class="num">15</td><td>Ensemble + one-way anomaly rule; periodic retraining</td><td><span class="pill md">Medium</span></td></tr>
+        <tr><td>Alert fatigue from false positives</td><td class="num">4</td><td class="num">3</td><td class="num">12</td><td>Confidence threshold, severity ranking, alert de-duplication</td><td><span class="pill lo">Low</span></td></tr>
+        <tr><td>Dashboard account takeover</td><td class="num">2</td><td class="num">5</td><td class="num">10</td><td>Hashed passwords, login rate-limit, RBAC, audit trail</td><td><span class="pill lo">Low</span></td></tr>
+        <tr><td>Tampered model file (malicious pickle)</td><td class="num">2</td><td class="num">5</td><td class="num">10</td><td>SHA-256 verification, read-only model directory</td><td><span class="pill lo">Low</span></td></tr>
+        <tr><td>Privacy leak via captured data</td><td class="num">2</td><td class="num">4</td><td class="num">8</td><td>No payload storage, retention limit, access restricted to analysts</td><td><span class="pill lo">Low</span></td></tr>
+        <tr><td>Concept drift: traffic changes over time</td><td class="num">4</td><td class="num">3</td><td class="num">12</td><td>Monitor score distribution; scheduled retraining on new labelled data</td><td><span class="pill md">Medium</span></td></tr>
+        <tr><td>Sensor overload during a flood</td><td class="num">3</td><td class="num">3</td><td class="num">9</td><td>Sampling under load, bounded queues, flood alert raised first</td><td><span class="pill md">Medium</span></td></tr>
+      </table>
+    </div>
+
+    <h3 class="mt">Standards &amp; frameworks alignment</h3>
+    <div class="grid g3">
+      <div class="card"><h3>NIST CSF 2.0</h3><ul><li><b>DE.CM</b>: continuous network monitoring</li><li><b>DE.AE</b>: adverse event analysis</li><li><b>RS.AN</b>: incident analysis (AI explanation)</li><li><b>PR.AA</b>: identity &amp; access control</li></ul></div>
+      <div class="card"><h3>ISO/IEC 27001:2022</h3><ul><li><b>A.8.16</b>: monitoring activities</li><li><b>A.8.15</b>: logging</li><li><b>A.5.15 / A.8.2</b>: access control, privileged access</li><li><b>A.5.24–5.26</b>: incident management</li></ul></div>
+      <div class="card"><h3>Indian legal context</h3><ul><li><b>IT Act 2000, §43 &amp; §72A</b>: monitor only networks you are authorised to monitor</li><li><b>DPDP Act 2023</b>: minimise personal data; IPs treated as personal data</li><li><b>CERT-In 2022 directions</b>: report incidents within 6 hours; keep logs for 180 days</li></ul></div>
+    </div>
+
+    <h3 class="mt">Ethical considerations</h3>
+    <div class="grid g2">
+      <div class="card"><p><b>Consent &amp; scope.</b> Capture runs only on networks the operator owns or is authorised to monitor. Attack simulations target lab hosts only.</p></div>
+      <div class="card"><p><b>Data minimisation.</b> Payloads are never stored. Flow records are kept only as long as needed, and the explainer sees only aggregated features.</p></div>
+      <div class="card"><p><b>Fairness &amp; transparency.</b> Every alert carries the features that triggered it, so analysts are not asked to trust a black box.</p></div>
+      <div class="card"><p><b>Human in the loop.</b> The system detects and recommends; blocking actions stay a human decision to avoid disrupting legitimate users.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= INCIDENT RESPONSE ================= -->
+<section id="incident">
+  <div class="wrap">
+    <div class="eyebrow">09 · Incident response</div>
+    <h2>Handling an alert end to end</h2>
+    <p class="lead">Alert handling follows the NIST SP 800-61 incident-response lifecycle.</p>
+    <div class="lifecycle">
+      <div class="phase"><h3>1 · Preparation</h3><p>Roles defined, baseline traffic profiled, models trained, playbooks for each of the 12 classes.</p></div>
+      <div class="phase"><h3>2 · Detection &amp; analysis</h3><p>Ensemble flags a flow; severity is scored; the AI explainer states what happened, which features triggered it, and the likely technique.</p></div>
+      <div class="phase"><h3>3 · Containment</h3><p>Analyst acknowledges the alert and applies the recommended action: firewall block on the source IP, rate-limit, or isolate the host.</p></div>
+      <div class="phase"><h3>4 · Eradication &amp; recovery</h3><p>Remove the root cause (close the port, reset credentials, clean the bot), then monitor for recurrence.</p></div>
+      <div class="phase"><h3>5 · Post-incident</h3><p>Incident log reviewed; confirmed samples added to training data; thresholds tuned.</p></div>
+    </div>
+
+    <div class="grid g2 mt">
+      <div class="card"><h3 style="color:var(--accent)">Strengths</h3><ul>
+        <li>Early warning: one-way flows are flagged before an attack completes.</li>
+        <li>Explained alerts shorten triage time for less-experienced analysts.</li>
+        <li>An append-only incident log with timestamps supports forensics and CERT-In reporting.</li>
+        <li>The built-in simulator lets the response playbooks be rehearsed safely.</li></ul></div>
+      <div class="card"><h3 style="color:var(--warn)">Limitations</h3><ul>
+        <li>Detection-only (IDS, not IPS): containment needs a human action.</li>
+        <li>Encrypted payloads are not inspected, so some web attacks are inferred only from flow shape.</li>
+        <li>A single sensor is itself a point of failure and can be overwhelmed by a large flood.</li>
+        <li>Model quality depends on how representative the training data is.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= INNOVATION ================= -->
+<section id="innovation">
+  <div class="wrap">
+    <div class="eyebrow">10 · Innovation</div>
+    <h2>What makes this different</h2>
+    <div class="grid g4 mt">
+      <div class="card"><h3>Direction-aware detection</h3><p>Treats one-way traffic as a first-class signal, which catches exfiltration and scanning that volume-based tools overlook.</p></div>
+      <div class="card"><h3>Ensemble ML</h3><p>Three gradient-boosted models vote, which reduces the blind spots any single model has.</p></div>
+      <div class="card"><h3>Explainable alerts</h3><p>Every incident comes with a plain-language narrative and recommended next step.</p></div>
+      <div class="card"><h3>Built-in attack lab</h3><p>DDoS and brute-force simulation to test detection and train analysts without a real attack.</p></div>
+    </div>
+
+    <h3 class="mt">Roadmap</h3>
+    <div class="grid g3">
+      <div class="card"><p><b>Active response:</b> optional automatic firewall rules for high-confidence alerts (IPS mode).</p></div>
+      <div class="card"><p><b>Distributed sensors:</b> several capture agents feeding one central analyser.</p></div>
+      <div class="card"><p><b>SIEM export:</b> forward alerts as Syslog/CEF to Wazuh or Splunk; SHAP values for per-feature explanations.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">NIDS · ML-Based Network Intrusion Detection System</div>
+</footer>
+
+<script src="assets/results.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
