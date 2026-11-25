@@ -17,7 +17,8 @@
     <li><a href="#workflow">Workflow</a></li>
     <li><a href="#controls">Security Controls</a></li>
     <li><a href="#threats">Threats</a></li>
-    <li><a href="#demo">Live Demo</a></li>
+    <li><a href="#demo">Live Analysis</a></li>
+    <li><a href="#dataset">Dataset</a></li>
     <li><a href="#evaluation">Results</a></li>
     <li><a href="#run">Run</a></li>
     <li><a href="#risk">Risk &amp; Compliance</a></li>
@@ -41,7 +42,8 @@
       <span class="tag">SQLite</span><span class="tag">Chart.js</span><span class="tag">Scapy</span><span class="tag">psutil</span><span class="tag">SHAP</span>
     </div>
     <div class="cta">
-      <a class="btn" href="#demo">Try the live demo</a>
+      <a class="btn" href="#demo">Watch live detection</a>
+      <a class="btn ghost" href="https://github.com/Nethrapalmjali/NIDS">Source code</a>
       <a class="btn ghost" href="#architecture">View architecture</a>
     </div>
   </div>
@@ -276,8 +278,8 @@
   <div class="wrap">
     <div class="eyebrow">05 · Threat &amp; vulnerability analysis</div>
     <h2>12 attack classes, mapped to real-world techniques</h2>
-    <p class="lead">The classifier is trained on labelled flow records in the style of CIC-IDS2017. Each class is mapped
-      to its attack vector, the features that reveal it, and its MITRE ATT&amp;CK technique.</p>
+    <p class="lead">The classifier is trained on the 12 attack classes of CIC-IDS2017. Each class is mapped to its attack
+      vector, the flow signal that gives it away, and its MITRE ATT&amp;CK technique.</p>
     <div class="table-wrap">
       <table>
         <tr><th>#</th><th>Class</th><th>Attack vector</th><th>Tell-tale signal</th><th>ATT&amp;CK</th><th>Severity</th></tr>
@@ -295,44 +297,58 @@
         <tr><td>12</td><td>Botnet</td><td>C2 beaconing from compromised host</td><td>Periodic, small, outbound-only flows</td><td>T1071</td><td><span class="pill hi">High</span></td></tr>
       </table>
     </div>
-    <p class="note">Flows matching none of the classes are labelled <b>Benign</b>. One-directional flows with a high
-      outbound byte ratio are flagged separately as <b>possible exfiltration</b> (T1041) for analyst review.</p>
+    <p class="note">Flows matching none of the attack classes are labelled <b>Benign</b>. One-directional behaviour (little or no return
+      traffic, captured by the volume and Down/Up Ratio features) is a key signal behind the DDoS, port-scan and botnet detections.</p>
   </div>
 </section>
 
 <!-- ================= DEMO ================= -->
 <section id="demo">
   <div class="wrap">
-    <div class="eyebrow">06 · Interactive demo</div>
-    <h2>Watch the detector react</h2>
-    <p class="lead">This in-browser simulation generates synthetic flows and runs the same behavioural feature checks the
-      NIDS uses. Launch an attack and watch it get detected and explained.</p>
+    <div class="eyebrow">06 · Real-time analysis</div>
+    <h2>Live intrusion detection, running in your browser</h2>
+    <p class="lead">This is the real trained model, not an animation. A stream of genuine CIC-IDS2017 flows from the
+      held-out test set (flows the model never saw in training) is classified one by one as it arrives. Launch any of
+      the 12 attacks and watch it get detected, explained and checked against the dataset's ground-truth label.</p>
+    <p class="note" id="lv-model"></p>
+    <p class="note" id="lv-loading">Loading model…</p>
 
-    <div class="demo">
+    <div id="lv-app" class="hidden">
       <div class="card">
         <div class="controls">
-          <button class="btn" id="toggle">Pause</button>
-          <button class="btn attack" data-attack="ddos">Launch DDoS</button>
-          <button class="btn attack" data-attack="scan">Port Scan</button>
-          <button class="btn attack" data-attack="brute">SSH Brute Force</button>
-          <button class="btn attack" data-attack="exfil">Data Exfiltration</button>
-          <button class="btn attack" data-attack="botnet">Botnet Beacon</button>
+          <button class="btn" id="lv-toggle">Pause</button>
+          <label class="ctl"><input type="checkbox" id="lv-mix"> Random attack mix</label>
+          <label class="ctl">Background traffic <input type="range" id="lv-rate-in" min="2" max="40" value="12"> <span id="lv-rate-val">12</span> flows/s</label>
         </div>
-        <div class="stats">
-          <div class="stat"><b id="s-flows">0</b><span>flows analysed</span></div>
-          <div class="stat"><b id="s-rate">0</b><span>packets / sec</span></div>
-          <div class="stat"><b id="s-alerts" style="color:var(--bad)">0</b><span>alerts</span></div>
-          <div class="stat"><b id="s-status" style="color:var(--accent)">SAFE</b><span>network status</span></div>
+        <div class="controls" id="lv-buttons"></div>
+      </div>
+
+      <div class="stats six mt-s">
+        <div class="stat"><b id="lv-flows">0</b><span>flows analysed</span></div>
+        <div class="stat"><b id="lv-rate">0</b><span>flows / second</span></div>
+        <div class="stat"><b id="lv-alerts" class="bad">0</b><span>incidents raised</span></div>
+        <div class="stat"><b id="lv-acc">–</b><span>accuracy vs ground truth</span></div>
+        <div class="stat"><b id="lv-lat">–</b><span>inference / flow (this device)</span></div>
+        <div class="stat"><b id="lv-status" class="ok">NORMAL</b><span>network status</span></div>
+      </div>
+
+      <div class="demo">
+        <div class="card">
+          <h3>Classified traffic, last 60 s</h3>
+          <canvas id="lv-chart" width="900" height="260"></canvas>
+          <p class="note"><span class="ok">■</span> benign &nbsp; <span class="bad">■</span> malicious (confidence ≥ 60%)</p>
+          <h3 class="mt-s">Live scorecard</h3>
+          <div class="table-wrap"><table id="lv-table"></table></div>
         </div>
-        <canvas id="chart" width="900" height="240"></canvas>
-        <p class="note"><span style="color:var(--accent)">■</span> benign packets/s &nbsp; <span style="color:var(--bad)">■</span> malicious packets/s</p>
+        <div class="card">
+          <h3>Incident feed &amp; explanation</h3>
+          <div class="log" id="lv-log"><p class="note">Monitoring… launch an attack above.</p></div>
+        </div>
       </div>
-      <div class="card">
-        <h3>Incident log &amp; AI explanation</h3>
-        <div class="log" id="log"><p class="note">No incidents yet. Launch an attack.</p></div>
-      </div>
+      <p class="note">How it works: assets/data/model.json holds the gradient-boosted trees exported from LightGBM. The browser walks each tree
+        for every flow, applies softmax across the 13 classes, and explains the decision by crediting each feature on the decision path with its
+        change in score (Saabas attribution). The full system adds XGBoost and CatBoost to the ensemble, along with live packet capture.</p>
     </div>
-    <p class="note">This page widget is a simplified in-browser illustration. The real system (below) scores flows with the trained ensemble.</p>
   </div>
 </section>
 
@@ -363,6 +379,66 @@ python -m nids.app run          # http://127.0.0.1:5000</pre>
   </div>
 </section>
 
+<!-- ================= DATASET ================= -->
+<section id="dataset">
+  <div class="wrap">
+    <div class="eyebrow">Training data</div>
+    <h2>The CIC-IDS2017 dataset</h2>
+    <p class="lead">CIC-IDS2017 was published by the Canadian Institute for Cybersecurity (University of New Brunswick).
+      It was recorded over five working days, 3–7 July 2017, on a testbed network: a victim network of Windows, Ubuntu and
+      macOS hosts and servers, attacked from a separate attacker network. Background traffic came from profiled user
+      behaviour (web, email, FTP, SSH). The captured packets were converted into bidirectional flows with CICFlowMeter, and
+      each flow is described by 78 statistical features and a label.</p>
+
+    <h3 class="mt">Capture timeline</h3>
+    <div class="timeline">
+      <div class="day"><b>Mon 3 Jul</b><span>Normal activity only: benign baseline</span></div>
+      <div class="day"><b>Tue 4 Jul</b><span>FTP-Patator, SSH-Patator: credential brute force</span></div>
+      <div class="day"><b>Wed 5 Jul</b><span>DoS Slowloris, Slowhttptest, Hulk, GoldenEye; Heartbleed</span></div>
+      <div class="day"><b>Thu 6 Jul</b><span>Web brute force, XSS, SQL injection; infiltration</span></div>
+      <div class="day"><b>Fri 7 Jul</b><span>Botnet (Ares), port scans, DDoS (LOIC)</span></div>
+    </div>
+
+    <div class="grid g2 mt">
+      <div class="card">
+        <h3>Class distribution (labelled flows, before de-duplication)</h3>
+        <div id="dist"></div>
+        <p class="note">The data is heavily imbalanced: benign flows outnumber SQL-injection flows by roughly 100,000 to 1.
+          That is why this project uses class-weighted training and macro-averaged metrics.</p>
+      </div>
+      <div class="card">
+        <h3>From raw dataset to training set</h3>
+        <ol class="steps">
+          <li><b>Load</b> all 8 daily CSV files (MachineLearningCSV), keeping the 28 selected features and the label.</li>
+          <li><b>Map labels</b> to 13 classes. Infiltration (36 flows) and Heartbleed (11) are dropped as too rare to learn.</li>
+          <li><b>Clean</b>: coerce to numeric and drop rows with NaN or ±∞ (present in the Flow Bytes/s column).</li>
+          <li><b>De-duplicate</b>: 378,461 identical rows removed, so no flow appears in both training and test sets.</li>
+          <li><b>Balance</b>: keep up to 250k benign and up to 50k flows per attack class.</li>
+          <li><b>Split</b>: stratified 80% train / 20% test, fixed seed 42 for reproducibility.</li>
+          <li><b>Weight</b>: square-root inverse class frequency, so rare classes matter without dominating.</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3 class="mt">The 28 features (all computable live from packet headers)</h3>
+    <p class="lead">Only features that a lightweight sensor can compute from packet headers in real time are used, so the
+      same model scores both the dataset and live captured traffic. Payloads are never inspected.</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Group</th><th>Features</th><th>What they reveal</th></tr>
+        <tr><td>Identity</td><td><code>Destination Port</code></td><td>Targeted service (22 = SSH, 21 = FTP, 80 = web)</td></tr>
+        <tr><td>Volume</td><td><code>Total Fwd/Backward Packets</code>, <code>Total Length of Fwd/Bwd Packets</code></td><td>One-way floods and scans have little or no return traffic</td></tr>
+        <tr><td>Packet size</td><td><code>Fwd Packet Length Max/Min/Mean</code>, <code>Bwd Packet Length Max/Mean</code>, <code>Average Packet Size</code></td><td>Tool fingerprints: brute-force tools send fixed-size login attempts</td></tr>
+        <tr><td>Rate</td><td><code>Flow Bytes/s</code>, <code>Flow Packets/s</code>, <code>Flow Duration</code></td><td>Floods are fast and short; slow DoS is long and nearly idle</td></tr>
+        <tr><td>Timing</td><td><code>Flow IAT Mean/Std/Max/Min</code>, <code>Fwd IAT Mean</code>, <code>Bwd IAT Mean</code></td><td>Inter-arrival gaps expose Slowloris and botnet beaconing</td></tr>
+        <tr><td>TCP flags</td><td><code>FIN</code>, <code>SYN</code>, <code>RST</code>, <code>PSH</code>, <code>ACK</code> flag counts</td><td>Half-open SYN scans, resets from closed ports</td></tr>
+        <tr><td>TCP window</td><td><code>Init_Win_bytes_forward/backward</code></td><td>Initial window size fingerprints the client OS or tool</td></tr>
+        <tr><td>Direction</td><td><code>Down/Up Ratio</code></td><td>The project's focus: one-directional traffic patterns</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
 <!-- ================= EVALUATION ================= -->
 <section id="evaluation">
   <div class="wrap">
@@ -378,10 +454,7 @@ python -m nids.app run          # http://127.0.0.1:5000</pre>
       <div class="card"><h3 id="d-test">–</h3><p>held-out test flows (20%, stratified)</p></div>
       <div class="card"><h3 id="d-feat">–</h3><p>flow features, all computable live from packet headers</p></div>
     </div>
-    <p class="note">Pipeline: drop duplicate flows (to prevent train/test leakage), remove NaN/∞ values, cap benign at
-      250k and each attack at 50k flows, apply square-root class weighting so rare classes (SQL injection, XSS)
-      still count, then a stratified 80/20 split. Infiltration (36 flows) and Heartbleed (11) are too small to learn
-      and are excluded.</p>
+    <p class="note">See <a href="#dataset">The CIC-IDS2017 dataset</a> above for the full preprocessing pipeline.</p>
 
     <h3 class="mt">Model performance <span class="note" id="gen-date"></span></h3>
     <p class="lead">Every number below is measured on the held-out test split. Macro averaging weights all 13 classes
@@ -474,7 +547,7 @@ python -m nids.app run          # http://127.0.0.1:5000</pre>
         <tr><td>Tampered model file (malicious pickle)</td><td class="num">2</td><td class="num">5</td><td class="num">10</td><td>SHA-256 verification, read-only model directory</td><td><span class="pill lo">Low</span></td></tr>
         <tr><td>Privacy leak via captured data</td><td class="num">2</td><td class="num">4</td><td class="num">8</td><td>No payload storage, retention limit, access restricted to analysts</td><td><span class="pill lo">Low</span></td></tr>
         <tr><td>Concept drift: traffic changes over time</td><td class="num">4</td><td class="num">3</td><td class="num">12</td><td>Monitor score distribution; scheduled retraining on new labelled data</td><td><span class="pill md">Medium</span></td></tr>
-        <tr><td>Sensor overload during a flood</td><td class="num">3</td><td class="num">3</td><td class="num">9</td><td>Sampling under load, bounded queues, flood alert raised first</td><td><span class="pill md">Medium</span></td></tr>
+        <tr><td>Sensor overload during a flood</td><td class="num">3</td><td class="num">3</td><td class="num">9</td><td>Bounded capture queue (20,000 flows), one-second batch scoring, and the flood itself raises a DDoS incident</td><td><span class="pill md">Medium</span></td></tr>
       </table>
     </div>
 
@@ -552,5 +625,6 @@ python -m nids.app run          # http://127.0.0.1:5000</pre>
 <script src="assets/results.js"></script>
 <script src="assets/report.js"></script>
 <script src="assets/app.js"></script>
+<script src="assets/live.js"></script>
 </body>
 </html>
