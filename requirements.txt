@@ -1,11 +1,16 @@
-numpy
-pandas
-scikit-learn
-lightgbm
-xgboost
-catboost
-joblib
-flask
-flask-login
-psutil
-scapy
+# Exact versions: the bundled models (nids/models/*.joblib) were trained with these, and pickled
+# models are only guaranteed to load with the library versions that created them.
+numpy==2.5.5
+pandas==3.1.1
+scipy==1.18.1
+scikit-learn==1.9.1
+lightgbm==4.7.0
+xgboost==3.4.1
+catboost==1.2.10
+joblib==1.6.0
+flask==3.1.3
+flask-login==0.6.3
+werkzeug==3.1.9
+waitress==3.0.2
+psutil==7.2.2
+scapy==2.8.0

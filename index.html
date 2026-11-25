@@ -363,10 +363,15 @@
     <div class="grid g2">
       <div class="card">
         <h3>Quick start</h3>
-<pre class="code">pip install -r requirements.txt
-python -m nids.train            # train + evaluate (~10 min)
+<pre class="code"># Docker (recommended)
+docker compose run --rm -e NIDS_ADMIN_PASSWORD=... nids init
+docker compose up -d            # http://127.0.0.1:5000
+
+# or Python 3.10-3.12
+pip install -r requirements.txt
 python -m nids.app init         # create admin account
-python -m nids.app run          # http://127.0.0.1:5000</pre>
+python -m nids.app check        # verify models + versions
+python -m nids.app serve        # production server (Waitress)</pre>
       </div>
       <div class="card">
         <h3>Traffic sources</h3>
@@ -375,6 +380,15 @@ python -m nids.app run          # http://127.0.0.1:5000</pre>
           <li><b><code>--source live</code></b>: real packet capture with Scapy. Packets are assembled into bidirectional flows (closed on FIN/RST, 15 s idle or 60 s active timeout) and scored as they close. On Windows this needs Npcap; on Linux, root or <code>CAP_NET_RAW</code>.</li>
         </ul>
       </div>
+    </div>
+    <h3 class="mt">Production-ready operations</h3>
+    <div class="grid g3">
+      <div class="card"><h3>Hardened deployment</h3><p>Waitress WSGI server; Docker image runs as non-root with a read-only filesystem, all capabilities dropped and a built-in health check; all configuration via environment variables; dependencies pinned to the exact versions the models were trained with.</p></div>
+      <div class="card"><h3>Observability</h3><p><code>/healthz</code> and <code>/readyz</code> probes, a Prometheus <code>/metrics</code> endpoint (flows, per-class counts, incidents, dropped flows, queue depth, engine heartbeat) and rotating log files.</p></div>
+      <div class="card"><h3>SIEM &amp; SOAR integration</h3><p>Each incident is appended to a JSON-lines feed for Filebeat, Wazuh or Splunk, and can be pushed to a webhook (Slack, Teams, SOAR) asynchronously so detection never stalls.</p></div>
+      <div class="card"><h3>Analyst workflow</h3><p>Filter incidents by status, severity and class; acknowledge with notes; export to CSV with formula-injection protection; change passwords; admins manage roles and disable accounts.</p></div>
+      <div class="card"><h3>Resilience</h3><p>Capture never blocks: when the engine falls behind, flows are dropped and counted. The flow table and caches are memory-bounded against scan floods, and a failing batch is logged without stopping detection.</p></div>
+      <div class="card"><h3>Continuous integration</h3><p>Every push runs lint, 23 unit and integration tests, and a Docker build with a container readiness smoke test, then republishes this website automatically.</p></div>
     </div>
   </div>
 </section>
@@ -619,7 +633,7 @@ python -m nids.app run          # http://127.0.0.1:5000</pre>
 </section>
 
 <footer>
-  <div class="wrap">NIDS · ML-Based Network Intrusion Detection System</div>
+  <div class="wrap">NIDS · ML-Based Network Intrusion Detection System · v1.0.0 · <a href="https://github.com/Nethrapalmjali/NIDS">Source on GitHub</a> · MIT License</div>
 </footer>
 
 <script src="assets/results.js"></script>

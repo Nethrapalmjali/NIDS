@@ -1,0 +1,23 @@
+name: Publish website
+
+# The project site is served by GitHub Pages from the gh-pages branch.
+# Every push to main republishes it, so the website always matches the code.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Push main to gh-pages
+        run: git push --force origin HEAD:gh-pages

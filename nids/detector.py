@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from pathlib import Path
 
 import joblib
 import numpy as np
 
 MODELS = Path(__file__).resolve().parent / "models"
+log = logging.getLogger("nids.detector")
 
 THREATS = {
     "DDoS": ("T1498", "high", "a distributed flood aimed at exhausting the target's bandwidth or connection table",
@@ -59,6 +61,27 @@ class IntegrityError(RuntimeError):
     pass
 
 
+VERSIONED = ("numpy", "scikit-learn", "lightgbm", "xgboost", "catboost", "joblib")
+
+
+def library_versions() -> dict:
+    from importlib.metadata import PackageNotFoundError, version
+    out = {}
+    for pkg in VERSIONED:
+        try:
+            out[pkg] = version(pkg)
+        except PackageNotFoundError:
+            out[pkg] = None
+    return out
+
+
+def check_versions(trained_with: dict) -> list[str]:
+    """Pickled models are only guaranteed to load correctly with the versions that saved them."""
+    now = library_versions()
+    return [f"{pkg} {now.get(pkg)} differs from training version {v}; install requirements.txt"
+            for pkg, v in trained_with.items() if now.get(pkg) != v]
+
+
 class Detector:
     def __init__(self, model_dir: Path = MODELS, threshold: float = 0.6):
         self.manifest = json.loads((model_dir / "manifest.json").read_text())
@@ -74,6 +97,9 @@ class Detector:
                 raise IntegrityError(f"{fname} failed SHA-256 verification")
             self.models[path.stem] = joblib.load(path)
         self.benign = self.classes.index("Benign")
+        self.version_warnings = check_versions(self.manifest.get("versions", {}))
+        for w in self.version_warnings:
+            log.warning(w)
 
     def vectorize(self, rows: list[dict]) -> np.ndarray:
         return np.array([[float(r.get(f, 0.0)) for f in self.features] for r in rows], dtype=np.float32)

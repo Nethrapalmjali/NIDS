@@ -132,12 +132,16 @@ class Flow:
 class FlowTable:
     """Groups packets into bidirectional flows; expires them on FIN/RST, idle or active timeout."""
 
-    def __init__(self, idle_timeout: float = 15.0, active_timeout: float = 60.0):
+    def __init__(self, idle_timeout: float = 15.0, active_timeout: float = 60.0, max_flows: int = 100_000):
         self.flows: dict[tuple, Flow] = {}
         self.idle_timeout = idle_timeout
         self.active_timeout = active_timeout
+        self.max_flows = max_flows   # memory bound: a port scan opens thousands of flows per second
+        self.evicted = 0
 
-    def packet(self, ts, src, dst, sport, dport, proto, length, tcp_flags="", window=None):
+    def packet(self, ts, src, dst, sport, dport, proto, length, tcp_flags="", window=None) -> list[Flow]:
+        """Add a packet; returns flows that finished as a result (closed, or evicted under memory pressure)."""
+        done: list[Flow] = []
         fkey = (src, dst, sport, dport, proto)
         bkey = (dst, src, dport, sport, proto)
         if fkey in self.flows:
@@ -145,12 +149,16 @@ class FlowTable:
         elif bkey in self.flows:
             flow, fwd = self.flows[bkey], False
         else:
+            if len(self.flows) >= self.max_flows:
+                # dicts keep insertion order, so the first key is the oldest flow
+                done.append(self._pop(self.flows[next(iter(self.flows))]))
+                self.evicted += 1
             flow, fwd = Flow(src, dst, sport, dport, proto, ts, ts), True
             self.flows[fkey] = flow
         flow.add(ts, length, fwd, tcp_flags, window)
         if "F" in tcp_flags or "R" in tcp_flags:
-            return self._pop(flow)
-        return None
+            done.append(self._pop(flow))
+        return done
 
     def _pop(self, flow: Flow):
         self.flows.pop((flow.src, flow.dst, flow.sport, flow.dport, flow.proto), None)

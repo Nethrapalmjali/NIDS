@@ -156,8 +156,9 @@ def main():
     # Benign medians: used by the explainer to say how far a flow deviates from normal.
     benign_median = dict(zip(FEATURES, np.median(X_tr[y_tr == benign_idx], axis=0).tolist()))
 
+    from .detector import library_versions
     manifest = {"classes": classes, "features": FEATURES, "benign_median": benign_median,
-                "files": {}}
+                "versions": library_versions(), "files": {}}
     for name in models:
         fp = MODELS / f"{name.lower()}.joblib"
         manifest["files"][fp.name] = sha256(fp)

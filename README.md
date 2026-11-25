@@ -1,5 +1,9 @@
 # NIDS: Machine-Learning Network Intrusion Detection System
 
+[![CI](https://github.com/Nethrapalmjali/NIDS/actions/workflows/ci.yml/badge.svg)](https://github.com/Nethrapalmjali/NIDS/actions/workflows/ci.yml)
+[![Website](https://github.com/Nethrapalmjali/NIDS/actions/workflows/pages.yml/badge.svg)](https://nethrapalmjali.github.io/NIDS/)
+![Python](https://img.shields.io/badge/python-3.10–3.12-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+
 **Live site and real-time demo: https://nethrapalmjali.github.io/NIDS/**
 
 NIDS monitors network traffic, turns it into flow-level features, and classifies each flow as
@@ -106,15 +110,35 @@ nids/train.py                 data pipeline, training, evaluation, SHA-256 model
 nids/export_web.py            trains/verifies/exports the browser model
 nids/detector.py              integrity-checked model loading, ensemble scoring, SHAP explanations
 nids/capture.py               live Scapy capture, held-out replay and attack simulation
-nids/app.py                   Flask dashboard: auth, RBAC, CSRF, incidents, audit log
+nids/app.py                   Flask dashboard + CLI: auth, RBAC, CSRF, incidents, audit, health, metrics
+nids/config.py                environment-variable configuration
+nids/alerts.py                JSON-lines SIEM feed and async webhook
 nids/models/                  trained models, manifest.json, replay flows
 nids/reports/metrics.json     complete evaluation output
-tests/test_nids.py            flow-feature and dashboard-security tests
+tests/test_nids.py            23 unit/integration tests
+Dockerfile, docker-compose.yml  hardened container (non-root, read-only, healthcheck)
+.github/workflows/           CI (lint, tests, Docker smoke test) and website publishing
 ```
 
 ## Run it
 
-Requires Python 3.10–3.12.
+### Option A: Docker (recommended for production)
+
+```bash
+docker compose build
+docker compose run --rm -e NIDS_ADMIN_PASSWORD='choose-a-strong-one' nids init   # first run only
+docker compose up -d                                                            # http://127.0.0.1:5000
+docker compose --profile live up -d nids-live                                   # live capture on the host network (Linux)
+```
+
+The container runs as a non-root user with a read-only filesystem and all Linux capabilities
+dropped (replay mode). It has a built-in health check against `/readyz`, and data persists in the
+`nids-data` volume.
+
+### Option B: Python
+
+Requires Python 3.10–3.12. Dependencies are pinned to the exact versions the bundled models were
+trained with.
 
 ```bash
 python -m venv .venv
@@ -122,21 +146,83 @@ python -m venv .venv
 pip install -r requirements.txt
 
 python -m nids.app init                # create the database and an admin account
-python -m nids.app run                 # http://127.0.0.1:5000
+python -m nids.app check               # verify model integrity, library versions, database
+python -m nids.app serve               # production server (Waitress) on http://127.0.0.1:5000
 ```
 
 | Mode | Command | What it does |
 |---|---|---|
-| Replay (default) | `python -m nids.app run` | Streams held-out CIC-IDS2017 flows in real time. Analysts can inject any of the 12 attacks, and the dashboard shows live agreement with ground truth |
-| Live capture | `python -m nids.app run --source live` | Captures real packets with Scapy, assembles flows, and scores them as they close. Needs [Npcap](https://npcap.com) on Windows, or root/`CAP_NET_RAW` on Linux |
+| Replay (default) | `python -m nids.app serve` | Streams held-out CIC-IDS2017 flows in real time. Analysts can inject any of the 12 attacks, and the dashboard shows live agreement with ground truth |
+| Live capture | `python -m nids.app serve --source live [--iface eth0]` | Captures real packets with Scapy, assembles flows, and scores them as they close. Needs [Npcap](https://npcap.com) on Windows, or root/`CAP_NET_RAW` on Linux |
 
-**Retrain from scratch:** download `MachineLearningCSV.zip` (CIC-IDS2017) into `data/raw/`, then:
+### Administration CLI
 
 ```bash
-python -m nids.train          # trains all models, writes metrics + website results (~10 min)
-python -m nids.export_web     # rebuilds the browser model
+python -m nids.app create-user alice --role analyst    # viewer | analyst | admin
+python -m nids.app reset-password alice
+python -m nids.app serve --dev                         # Flask development server, for debugging only
+```
+
+### Configuration
+
+All settings are environment variables (see `nids/config.py`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `NIDS_INSTANCE` | `nids/instance` | Database, secret key, rotating logs, alert feed |
+| `NIDS_HOST` / `NIDS_PORT` | `127.0.0.1` / `5000` | Bind address |
+| `NIDS_SOURCE` / `NIDS_IFACE` | `replay` / all | Traffic source and capture interface |
+| `NIDS_THRESHOLD` | `0.6` | Minimum ensemble confidence to raise an incident |
+| `NIDS_HTTPS` / `NIDS_TRUST_PROXY` | `0` / `0` | Behind a TLS reverse proxy: Secure cookies, HSTS, X-Forwarded-* |
+| `NIDS_SESSION_MINUTES` | `60` | Session lifetime |
+| `NIDS_WEBHOOK_URL` | off | POST each new incident as JSON (Slack, Teams, SOAR) |
+| `NIDS_METRICS_TOKEN` | off | Bearer token for `/metrics` (otherwise loopback only) |
+| `NIDS_SECRET_KEY` | generated | Session signing key |
+| `NIDS_LOG_LEVEL` / `NIDS_THREADS` | `INFO` / `8` | Logging level, Waitress worker threads |
+
+### HTTP API
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /healthz` | public | Liveness |
+| `GET /readyz` | public | Readiness: engine heartbeat and database (503 if unhealthy) |
+| `GET /metrics` | token / loopback | Prometheus metrics: flows, per-class counts, incidents, drops, queue depth, webhook deliveries |
+| `GET /api/stats` | viewer | Live counters and the 60-second traffic series |
+| `GET /api/incidents?status=&severity=&label=&since=&limit=` | viewer | Filtered incident list (JSON) |
+| `GET /api/incidents.csv` | analyst | CSV export (formula-injection safe) |
+| `POST /api/incidents/<id>/ack` | analyst | Acknowledge an incident with a note |
+| `POST /api/simulate` | analyst | Inject held-out flows of an attack class (replay mode) |
+
+All POSTs require the session's CSRF token (`X-CSRF-Token` header).
+
+### Monitoring and SIEM integration
+
+- **Alerts:** each new incident is appended to `alerts.jsonl` as one JSON object per line, ready for
+  Filebeat, Wazuh or a Splunk forwarder. It can also be pushed to `NIDS_WEBHOOK_URL`.
+- **Metrics:** scrape `/metrics` with Prometheus. Alert on `nids_engine_heartbeat_age_seconds > 5`
+  and on increases in `nids_flows_dropped_total`.
+- **Logs:** `nids.log` in the instance folder rotates at 5 MB and keeps 5 files.
+- **Audit:** every login, failed login, lockout, acknowledgement, export, simulation and user change
+  is recorded in an append-only audit table, which admins can view on the dashboard.
+
+### Retrain from scratch
+
+Download `MachineLearningCSV.zip` (CIC-IDS2017) into `data/raw/`, then:
+
+```bash
+python -m nids.train          # trains all models, writes metrics, manifest and website results (~10 min)
+python -m nids.export_web     # rebuilds and verifies the browser model
 python -m unittest discover -s tests
 ```
+
+### Quality gates
+
+GitHub Actions runs on every push:
+- lint
+- 23 unit and integration tests: flow features, model integrity and accuracy, the detection engine, authentication, RBAC, CSRF, lockout, CSV export, health and metrics, and migrations
+- a Docker build with a container readiness smoke test
+
+It then republishes the website automatically.
 
 ## Limitations
 
@@ -148,3 +234,15 @@ python -m unittest discover -s tests
 - **Detection only.** NIDS raises and explains alerts; blocking is left to an analyst (no automatic
   IPS actions).
 - **Single sensor.** One capture point can itself be overloaded by a large flood.
+
+## Citation
+
+If you use this project, please cite the dataset:
+
+> Iman Sharafaldin, Arash Habibi Lashkari, and Ali A. Ghorbani, "Toward Generating a New Intrusion
+> Detection Dataset and Intrusion Traffic Characterization", *4th International Conference on
+> Information Systems Security and Privacy (ICISSP)*, Portugal, January 2018.
+
+## License
+
+MIT; see [LICENSE](LICENSE). Security issues: see [SECURITY.md](SECURITY.md).

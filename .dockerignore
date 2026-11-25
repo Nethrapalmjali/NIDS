@@ -1,0 +1,11 @@
+.git
+.github
+.venv
+data
+catboost_info
+assets
+index.html
+tests
+**/__pycache__
+nids/instance
+*.md

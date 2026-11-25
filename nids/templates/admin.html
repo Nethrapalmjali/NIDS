@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><title>NIDS · Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}"></head>
 <body>
 <header>
@@ -11,20 +12,39 @@
   {% if msg %}<p class="panel">{{ msg }}</p>{% endif %}
   <div class="row">
     <section class="panel">
-      <h2>Audit trail (append-only)</h2>
-      <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th></tr></thead><tbody>
-      {% for a in log %}<tr><td class="mono">{{ a.ts | int }}</td><td>{{ a.user }}</td><td>{{ a.action }}</td><td>{{ a.detail }}</td></tr>{% endfor %}
+      <h2>Audit trail (append-only, latest 200)</h2>
+      <div class="incidents">
+      <table><thead><tr><th>Time (UTC)</th><th>User</th><th>Action</th><th>Detail</th></tr></thead><tbody>
+      {% for a in log %}<tr><td class="mono">{{ iso(a.ts) }}</td><td>{{ a.user }}</td><td>{{ a.action }}</td><td>{{ a.detail }}</td></tr>{% endfor %}
       </tbody></table>
+      </div>
     </section>
     <section class="panel">
       <h2>Users</h2>
-      <table><tbody>{% for u in users %}<tr><td>{{ u.username }}</td><td>{{ u.role }}</td></tr>{% endfor %}</tbody></table>
-      <h2>Add user</h2>
+      <table>
+        <thead><tr><th>User</th><th>Role</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.username }}</td>
+          <td colspan="3">
+            <form method="post" action="{{ url_for('admin_update_user', uid=u.id) }}" class="inline">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <select name="role">{% for r in roles %}<option {% if r == u.role %}selected{% endif %}>{{ r }}</option>{% endfor %}</select>
+              <select name="active"><option value="1" {% if u.active %}selected{% endif %}>active</option><option value="0" {% if not u.active %}selected{% endif %}>disabled</option></select>
+              <button>Save</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <h2 class="mt">Add user</h2>
       <form method="post" action="{{ url_for('admin_create_user') }}">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <label>Username<input name="username" maxlength="32" required></label>
-        <label>Password (10+ chars)<input name="password" type="password" minlength="10" required></label>
-        <label>Role<select name="role"><option>viewer</option><option>analyst</option><option>admin</option></select></label>
+        <label>Password (10+ chars)<input name="password" type="password" minlength="10" required autocomplete="new-password"></label>
+        <label>Role<select name="role">{% for r in roles %}<option>{{ r }}</option>{% endfor %}</select></label>
         <button>Create</button>
       </form>
     </section>

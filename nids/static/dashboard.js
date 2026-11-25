@@ -30,6 +30,10 @@
   async function refreshStats() {
     const s = await (await fetch("/api/stats")).json();
     $("source").textContent = s.sourceNote ? "· " + s.sourceNote : "";
+    const h = $("health");
+    const healthy = s.heartbeatAge < 5;
+    h.textContent = `engine ${healthy ? "healthy" : "stalled"} · queue ${s.queue} · dropped ${s.dropped}`;
+    h.className = "pill-health " + (healthy && !s.dropped ? "ok" : "warn");
     $("k-flows").textContent = s.flows.toLocaleString();
     const last = s.series[s.series.length - 1] || [0, 0, 0, 0];
     $("k-rate").textContent = last[1] + last[2];
@@ -46,9 +50,23 @@
     classes.update();
   }
 
+  function filters() {
+    const p = new URLSearchParams();
+    for (const [id, key] of [["f-status", "status"], ["f-severity", "severity"], ["f-label", "label"]]) {
+      if ($(id).value) p.set(key, $(id).value);
+    }
+    return p;
+  }
+
   async function refreshIncidents() {
-    const rows = await (await fetch("/api/incidents?limit=100")).json();
-    $("k-open").textContent = rows.filter((r) => r.status === "open").length;
+    const p = filters();
+    if ($("export")) $("export").href = "/api/incidents.csv?" + p.toString() + "&limit=10000";
+    p.set("limit", "200");
+    const [rows, open] = await Promise.all([
+      fetch("/api/incidents?" + p).then((r) => r.json()),
+      fetch("/api/incidents?status=open&limit=10000").then((r) => r.json()),
+    ]);
+    $("k-open").textContent = open.length;
     $("inc").innerHTML = rows.map((r) => `
       <tr>
         <td class="mono">${new Date(r.last_ts * 1000).toLocaleTimeString()}</td>
@@ -69,11 +87,13 @@
     const ack = e.target.closest("[data-ack]");
     if (ack) {
       const note = prompt("Analyst note (optional):") || "";
-      await post(`/api/incidents/${ack.dataset.ack}/ack`, { note });
+      const r = await post(`/api/incidents/${ack.dataset.ack}/ack`, { note });
+      if (!r.ok) alert((await r.json()).error || "Could not acknowledge");
       refreshIncidents();
     }
   });
 
+  ["f-status", "f-severity", "f-label"].forEach((id) => $(id).addEventListener("change", refreshIncidents));
   refreshStats(); refreshIncidents();
   setInterval(refreshStats, 1000);
   setInterval(refreshIncidents, 2000);

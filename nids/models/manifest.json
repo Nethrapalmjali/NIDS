@@ -78,5 +78,13 @@
     "lightgbm.joblib": "eb16bbf6878d95ec0b456fc367fcb92ceb0b61edc7abdaa5633620160df979f3",
     "xgboost.joblib": "f53713e4113fc6112a0568e91e725eb944d6bbe71a0f82a341eacf7674bafc67",
     "catboost.joblib": "cc4045c4c372cbc6cab6e876b426bdbf5f52113af7050419409e36cb981edee9"
+  },
+  "versions": {
+    "numpy": "2.5.5",
+    "scikit-learn": "1.9.1",
+    "lightgbm": "4.7.0",
+    "xgboost": "3.4.1",
+    "catboost": "1.2.10",
+    "joblib": "1.6.0"
   }
 }

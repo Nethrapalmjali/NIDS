@@ -1,0 +1,42 @@
+# Replay mode (default):   docker compose up -d
+# Live capture (Linux):    docker compose --profile live up -d nids-live
+# First run, either mode:  docker compose run --rm -e NIDS_ADMIN_PASSWORD='change-me-please' nids init
+services:
+  nids:
+    build: .
+    image: nids:1.0.0
+    ports:
+      - "127.0.0.1:5000:5000"          # publish on localhost only; put a TLS reverse proxy in front
+    environment:
+      NIDS_SOURCE: replay
+      NIDS_HTTPS: "0"                  # set to 1 (and NIDS_TRUST_PROXY: 1) behind an HTTPS proxy
+      NIDS_THRESHOLD: "0.6"
+      # NIDS_WEBHOOK_URL: https://hooks.example.com/nids
+      # NIDS_METRICS_TOKEN: change-me
+    volumes:
+      - nids-data:/data
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  # Live packet capture needs raw-socket privileges on the host network.
+  nids-live:
+    profiles: ["live"]
+    build: .
+    image: nids:1.0.0
+    network_mode: host
+    user: "0:0"
+    cap_add: [NET_RAW, NET_ADMIN]
+    environment:
+      NIDS_SOURCE: live
+      NIDS_IFACE: eth0
+      NIDS_HOST: 127.0.0.1
+    volumes:
+      - nids-data:/data
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+volumes:
+  nids-data:
